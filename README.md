@@ -184,3 +184,5 @@ FastAPI assignment/
 - **Database**: PostgreSQL 16 (with async SQLite support for zero-setup local testing).
 - **Integration**: Decoupled `HealthcareConnector` interface and `MockEHRConnector` with fault injection controls.
 - **Infrastructure**: Docker, Docker Compose, Redis.
+#   H o s p i t a l - M a n a g e m e n t  
+ 
