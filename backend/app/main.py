@@ -33,12 +33,15 @@ async def lifespan(app: FastAPI):
     # Setup structured logging
     setup_logging()
     logger.info("Initializing Autonomous Healthcare Platform Backend...")
-    # Initialize database tables if needed
+    # Initialize database tables and auto-seed demo accounts if needed
     try:
         await init_db()
         logger.info("Database initialized successfully.")
+        from app.db.seed import seed_database
+        await seed_database()
+        logger.info("Database auto-seeded successfully with demo accounts.")
     except Exception as e:
-        logger.error(f"Database initialization error: {e}")
+        logger.error(f"Database initialization/seed error: {e}")
     yield
     logger.info("Shutting down Healthcare Platform Backend.")
     await engine.dispose()

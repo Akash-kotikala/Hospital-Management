@@ -61,6 +61,68 @@ async def get_current_user(
     return user
 
 
+async def get_current_user_or_guest(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+    _ctx: dict = Depends(get_correlation_context),
+) -> User:
+    """Returns the authenticated user, or falls back to demo patient Jane Doe for patient intake flows."""
+    if token:
+        try:
+            payload = decode_access_token(token)
+            user_id: Optional[str] = payload.get("sub")
+            if user_id:
+                result = await db.execute(
+                    select(User)
+                    .options(
+                        selectinload(User.staff_profile),
+                        selectinload(User.doctor_profile),
+                        selectinload(User.patient_profile),
+                    )
+                    .where(User.id == user_id)
+                )
+                user = result.scalar_one_or_none()
+                if user and user.is_active:
+                    return user
+        except Exception:
+            pass
+
+    # Fallback to demo patient Jane Doe
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.staff_profile),
+            selectinload(User.doctor_profile),
+            selectinload(User.patient_profile),
+        )
+        .where(User.email == "jane.doe@example.com")
+    )
+    user = result.scalar_one_or_none()
+    if user:
+        return user
+
+    # Auto-seed if database is brand new
+    try:
+        from app.db.seed import seed_database
+        await seed_database()
+        result = await db.execute(
+            select(User)
+            .options(
+                selectinload(User.staff_profile),
+                selectinload(User.doctor_profile),
+                selectinload(User.patient_profile),
+            )
+            .where(User.email == "jane.doe@example.com")
+        )
+        user = result.scalar_one_or_none()
+        if user:
+            return user
+    except Exception:
+        pass
+
+    raise AuthenticationException("Unable to resolve user session", code="SESSION_FAILED")
+
+
 def require_role(*allowed_roles: UserRole) -> Callable:
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in allowed_roles:

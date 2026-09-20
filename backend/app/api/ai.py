@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.db.database import get_db
 from app.db.models.auth import User
 from app.db.models.ai import AIConversation, AIMessage
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_user_or_guest
 from app.services.audit_service import AuditService
 from app.ai.agent import ai_agent
 from app.schemas.ai import (
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/ai", tags=["AI Patient Access Agent & Voice"])
 async def chat_with_agent(
     req: ChatRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_guest),
 ):
     """
     Interact with the administrative healthcare access agent:
@@ -55,7 +55,7 @@ async def chat_with_agent(
 async def create_voice_session(
     req: VoiceSessionRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_guest),
 ):
     """Initialize a voice intake session supporting browser Web Speech & streaming audio."""
     patient_id = current_user.patient_profile.id if current_user.patient_profile else None
@@ -74,9 +74,9 @@ async def create_voice_session(
         action="VOICE_SESSION_INITIALIZED",
         resource_type="VOICE_SESSION",
         resource_id=session_id,
-        user_id=current_user.id,
-        hospital_id=req.hospital_id,
-        details={"conversation_id": conv.id}
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        details={"conversation_id": conv.id},
     )
 
     return ApiResponse(
@@ -85,7 +85,7 @@ async def create_voice_session(
             session_id=session_id,
             conversation_id=conv.id,
             status="ACTIVE",
-            mode="BROWSER_SPEECH",
+            supported_audio_formats=["audio/wav", "audio/webm", "browser_speech_api"],
         ),
     )
 
@@ -94,7 +94,7 @@ async def create_voice_session(
 async def process_voice_turn(
     req: VoiceAudioProcessRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_guest),
 ):
     """Process a voice turn (audio transcript -> AI agent capabilities -> reply text)."""
     transcript = req.transcript or "I need an appointment."

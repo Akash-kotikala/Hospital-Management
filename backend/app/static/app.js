@@ -50,8 +50,9 @@ async function apiRequest(endpoint, options = {}) {
     "Content-Type": "application/json",
     ...(options.headers || {}),
   };
-  if (STATE.token) {
-    headers["Authorization"] = `Bearer ${STATE.token}`;
+  const token = STATE.token || localStorage.getItem("healthcare_token");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   try {
@@ -75,9 +76,35 @@ async function switchRole(roleKey) {
   if (loginRes.success && loginRes.data) {
     STATE.token = loginRes.data.access_token;
     STATE.currentUser = loginRes.data.user;
+    localStorage.setItem("healthcare_token", loginRes.data.access_token);
   } else {
-    // Fallback representation if not yet seeded
-    STATE.currentUser = { email: account.email, full_name: account.name, role: account.role };
+    // Attempt auto-register if database wasn't seeded yet
+    try {
+      await apiRequest("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          email: account.email,
+          password: "Password123!",
+          full_name: account.name,
+          role: account.role,
+        }),
+      });
+      // Retry login
+      const retryLogin = await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: account.email, password: "Password123!" }),
+      });
+      if (retryLogin.success && retryLogin.data) {
+        STATE.token = retryLogin.data.access_token;
+        STATE.currentUser = retryLogin.data.user;
+        localStorage.setItem("healthcare_token", retryLogin.data.access_token);
+      }
+    } catch (e) {
+      console.warn("Auto-register fallback:", e);
+    }
+    if (!STATE.token) {
+      STATE.currentUser = { email: account.email, full_name: account.name, role: account.role };
+    }
   }
 
   // Adjust default tab per role
@@ -204,13 +231,25 @@ async function handleSendMessage(text) {
     STATE.timelineState = "DISCOVERY";
   }
 
-  const res = await apiRequest("/api/ai/chat", {
+  let res = await apiRequest("/api/ai/chat", {
     method: "POST",
     body: JSON.stringify({
       message: text,
       conversation_id: STATE.activeConversationId,
     }),
   });
+
+  // If unauthenticated or token expired, re-authenticate as Patient and retry
+  if (!res.success && (!STATE.token || res.error?.code === "UNAUTHORIZED" || res.error?.code === "MISSING_TOKEN" || res.error?.code === "INVALID_TOKEN")) {
+    await switchRole("PATIENT");
+    res = await apiRequest("/api/ai/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        message: text,
+        conversation_id: STATE.activeConversationId,
+      }),
+    });
+  }
 
   if (res.success && res.data) {
     STATE.activeConversationId = res.data.conversation_id;
@@ -237,9 +276,10 @@ async function handleSendMessage(text) {
     // Speak response
     speakReply(res.data.message);
   } else {
+    const fallbackError = (res && res.error && res.error.message) ? res.error.message : "Service is updating. Please try your message again.";
     STATE.messages.push({
       sender: "ASSISTANT",
-      content: "Sorry, I could not process your request at this moment. Please try again.",
+      content: fallbackError,
     });
   }
 
