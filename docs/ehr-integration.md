@@ -1,8 +1,12 @@
 # Healthcare System & Mock EHR Integration
 
+[← Back to Repository README](../README.md)
+
+---
+
 ## 1. Connector Abstraction
 
-To ensure modularity and readiness for future EHR systems (Epic, Cerner, FHIR APIs), all EHR interactions are governed by the `HealthcareConnector` abstract interface.
+To ensure modularity and readiness for enterprise EHR systems (Epic, Cerner, FHIR APIs), all EHR interactions are governed by the `HealthcareConnector` abstract interface.
 
 ```mermaid
 classDiagram
@@ -51,7 +55,7 @@ sequenceDiagram
 
 ## 3. Mock EHR Simulation Modes
 
-The Mock EHR supports real-time fault injection for testing and demonstration:
+The Mock EHR supports real-time fault injection for testing and resilience demonstrations:
 
 | Mode | Behavior | Purpose |
 | :--- | :--- | :--- |

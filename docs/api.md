@@ -1,27 +1,32 @@
 # REST API & OpenAPI Documentation
 
-## 1. Overview & Interactive Swagger UI
+[← Back to Repository README](../README.md)
 
-The FastAPI backend provides interactive OpenAPI documentation at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-- Direct UI: `http://localhost:8000/`
+---
+
+## 1. Overview & Interactive Documentation
+
+The FastAPI backend provides interactive OpenAPI documentation out-of-the-box:
+
+- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc UI**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- **Web App Dashboard**: [http://localhost:8000/](http://localhost:8000/)
 
 ---
 
 ## 2. Standard Request Headers
 
-| Header | Description | Default |
+| Header | Description | Required |
 | :--- | :--- | :--- |
-| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | Required on protected endpoints |
-| `X-Correlation-ID`| Distributed correlation tracking identifier | Auto-generated UUID if omitted |
-| `X-Operation-ID`  | Atomic business operation identifier | Auto-generated UUID if omitted |
+| `Authorization` | `Bearer <JWT_ACCESS_TOKEN>` | Yes (for protected endpoints) |
+| `X-Correlation-ID` | Distributed correlation tracking identifier | Optional (auto-generated UUID if omitted) |
+| `X-Operation-ID` | Atomic business operation identifier | Optional (auto-generated UUID if omitted) |
 
 ---
 
 ## 3. Standardized Error Response Format
 
-All errors strictly conform to the PRD Section 27 schema:
+All API errors strictly conform to the PRD Section 27 error schema:
 
 ```json
 {
@@ -41,8 +46,8 @@ All errors strictly conform to the PRD Section 27 schema:
 
 ### Authentication (`/api/auth`)
 - `POST /api/auth/register`: Register new user (Patient, Hospital Admin, Doctor)
-- `POST /api/auth/login`: Authenticate and obtain JWT token
-- `GET /api/auth/me`: Retrieve current profile and role information
+- `POST /api/auth/login`: Authenticate credentials and receive JWT token
+- `GET /api/auth/me`: Retrieve current profile, permissions, and assigned hospital
 
 ### Hospitals & Multi-Tenancy (`/api/hospitals`)
 - `POST /api/hospitals`: Register new hospital tenant (`DRAFT`)
@@ -52,8 +57,8 @@ All errors strictly conform to the PRD Section 27 schema:
 - `POST /api/hospitals/{id}/reject`: Platform Admin rejection
 
 ### Doctors & Real Availability (`/api/doctors`)
-- `POST /api/doctors`: Create doctor in approved hospital
-- `GET /api/doctors`: Discover doctors by specialty or hospital
+- `POST /api/doctors`: Create doctor under approved hospital
+- `GET /api/doctors`: Discover doctors by medical specialty or hospital
 - `POST /api/doctors/{id}/availability`: Configure weekly working hours
 - `POST /api/doctors/{id}/blocked-slots`: Block leaves or emergency periods
 - `GET /api/doctors/{id}/slots`: Query real database-backed bookable slots
@@ -61,7 +66,7 @@ All errors strictly conform to the PRD Section 27 schema:
 ### Appointments & Two-Phase Booking (`/api/appointments`)
 - `POST /api/appointments`: Execute booking with two-phase EHR verification
 - `GET /api/appointments`: List appointments (tenant & role scoped)
-- `GET /api/appointments/{id}`: View appointment lifecycle transition history
+- `GET /api/appointments/{id}`: View appointment lifecycle and history
 - `POST /api/appointments/{id}/reschedule`: Reschedule with EHR update
 - `POST /api/appointments/{id}/cancel`: Cancel booking and release slot
 
@@ -73,7 +78,7 @@ All errors strictly conform to the PRD Section 27 schema:
 ### AI Agent & Voice Intake (`/api/ai`)
 - `POST /api/ai/chat`: Interactive chat with AI Agent & capability execution
 - `POST /api/ai/voice/session`: Initialize voice session
-- `POST /api/ai/voice/process`: Audio transcript processing
+- `POST /api/ai/voice/process`: Process audio transcript
 
 ### Integrations & Demo Controls (`/api/integrations` & `/mock-ehr`)
 - `POST /api/integrations/failure-mode`: Demo control to arm Mock EHR timeout
